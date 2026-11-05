@@ -3,7 +3,7 @@ package com.reimburse.expenseservice.dto;
 import lombok.Data;
 
 @Data
-public class UserDto {
+public class UserBody {
     private Long id;
 
     private String cognitoSub;
