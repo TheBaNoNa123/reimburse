@@ -6,6 +6,7 @@ import com.reimburse.expenseservice.dto.UpdateExpense;
 import com.reimburse.expenseservice.entity.Category;
 import com.reimburse.expenseservice.entity.Expense;
 import com.reimburse.expenseservice.entity.User;
+import com.reimburse.expenseservice.exception.ResourceNotFoundException;
 import com.reimburse.expenseservice.repository.CategoryRepository;
 import com.reimburse.expenseservice.repository.ExpenseRepository;
 import com.reimburse.expenseservice.repository.UserRepository;
@@ -86,16 +87,16 @@ public class ExpenseService {
 
     private User findUser(Long id){
         return userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id " + id));
     }
 
     private Expense findExpense(Long expenseId){
         return expenseRepository.findById(expenseId)
-                .orElseThrow(() -> new RuntimeException("Expense not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Expense not found with id " + expenseId));
     }
 
     private Category findCategory(Long categoryId){
         return categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new RuntimeException("Category not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found with id " + categoryId));
     }
 }

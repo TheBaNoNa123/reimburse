@@ -5,22 +5,23 @@ import com.reimburse.expenseservice.dto.CreateExpenseRequest;
 import com.reimburse.expenseservice.dto.ExpenseResponse;
 import com.reimburse.expenseservice.dto.UpdateExpense;
 import com.reimburse.expenseservice.service.ExpenseService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/expense")
-public class Controller {
+public class ExpenseController {
 
     private final ExpenseService expenseService;
 
-    public Controller(ExpenseService expenseService) {
+    public ExpenseController(ExpenseService expenseService) {
         this.expenseService = expenseService;
     }
 
     @PostMapping("/{userId}")
-    public ResponseEntity<Long> createExpense(@PathVariable Long userId, @RequestBody CreateExpenseRequest request){
+    public ResponseEntity<Long> createExpense(@PathVariable Long userId, @Valid @RequestBody CreateExpenseRequest request){
 
         Long id = expenseService.createExpense(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(id);
@@ -33,7 +34,7 @@ public class Controller {
     }
 
     @PutMapping("/{expenseId}")
-    public ResponseEntity<Long> updateExpense(@PathVariable Long expenseId, @RequestBody UpdateExpense request){
+    public ResponseEntity<Long> updateExpense(@PathVariable Long expenseId, @Valid @RequestBody UpdateExpense request){
 
         return ResponseEntity.ok(expenseService.updateExpense(expenseId, request));
     }
