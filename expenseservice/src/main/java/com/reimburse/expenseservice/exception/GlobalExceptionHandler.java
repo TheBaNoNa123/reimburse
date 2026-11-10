@@ -1,6 +1,5 @@
 package com.reimburse.expenseservice.exception;
 
-import org.apache.catalina.connector.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -26,6 +25,12 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining(", "));
 
         return ResponseEntity.badRequest().body(new ErrorResponse(400, message));
+    }
+
+    @ExceptionHandler(InvalidExpenseStateException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidState(InvalidExpenseStateException ex){
+        ErrorResponse body = new ErrorResponse(409, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
 }

@@ -9,7 +9,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Table(name = "categories")
-public class Category {
+public class Category extends Auditable{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

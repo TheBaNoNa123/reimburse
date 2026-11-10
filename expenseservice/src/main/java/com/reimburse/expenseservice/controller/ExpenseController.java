@@ -4,6 +4,7 @@ package com.reimburse.expenseservice.controller;
 import com.reimburse.expenseservice.dto.CreateExpenseRequest;
 import com.reimburse.expenseservice.dto.ExpenseResponse;
 import com.reimburse.expenseservice.dto.UpdateExpense;
+import com.reimburse.expenseservice.entity.ExpenseStatus;
 import com.reimburse.expenseservice.service.ExpenseService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -43,5 +44,15 @@ public class ExpenseController {
     public ResponseEntity<Void> deleteExpense(@PathVariable Long expenseId){
         expenseService.deleteExpense(expenseId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{expenseId}/accepted")
+    public ResponseEntity<ExpenseResponse> approveExpense(@PathVariable Long expenseId, @RequestParam String reviewer){
+        return ResponseEntity.ok(expenseService.approveExpense(expenseId, reviewer));
+    }
+
+    @PostMapping("/{expenseId}/rejected")
+    public ResponseEntity<ExpenseResponse> rejectExpense(@PathVariable Long expenseId, @RequestParam String reviewer){
+        return ResponseEntity.ok(expenseService.rejectExpense(expenseId, reviewer));
     }
 }

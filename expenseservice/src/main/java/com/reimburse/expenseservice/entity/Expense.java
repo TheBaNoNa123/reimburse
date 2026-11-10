@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 
 
@@ -12,7 +13,7 @@ import java.time.LocalDate;
 @Getter
 @Setter
 @Table(name = "expenses")
-public class Expense {
+public class Expense extends Auditable{
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -41,4 +42,10 @@ public class Expense {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @Column(name="reviewed_by")
+    private String reviewedBy;
+
+    @Column(name="reviewed_at")
+    private Instant reviewedAt;
 }

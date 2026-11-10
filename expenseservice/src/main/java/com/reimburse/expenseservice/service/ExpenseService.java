@@ -3,26 +3,30 @@ package com.reimburse.expenseservice.service;
 import com.reimburse.expenseservice.dto.CreateExpenseRequest;
 import com.reimburse.expenseservice.dto.ExpenseResponse;
 import com.reimburse.expenseservice.dto.UpdateExpense;
-import com.reimburse.expenseservice.entity.Category;
-import com.reimburse.expenseservice.entity.Expense;
-import com.reimburse.expenseservice.entity.User;
+import com.reimburse.expenseservice.entity.*;
+import com.reimburse.expenseservice.exception.InvalidExpenseStateException;
 import com.reimburse.expenseservice.exception.ResourceNotFoundException;
 import com.reimburse.expenseservice.repository.CategoryRepository;
+import com.reimburse.expenseservice.repository.ExpenseHistoryRepository;
 import com.reimburse.expenseservice.repository.ExpenseRepository;
 import com.reimburse.expenseservice.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
 
 @Service
 public class ExpenseService {
     private final ExpenseRepository expenseRepository;
     private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
+    private final ExpenseHistoryRepository expenseHistoryRepository;
 
-    public ExpenseService(ExpenseRepository expenseRepository, UserRepository userRepository, CategoryRepository categoryRepository){
+    public ExpenseService(ExpenseRepository expenseRepository, UserRepository userRepository, CategoryRepository categoryRepository, ExpenseHistoryRepository expenseHistoryRepository){
         this.expenseRepository = expenseRepository;
         this.userRepository = userRepository;
         this.categoryRepository = categoryRepository;
+        this.expenseHistoryRepository = expenseHistoryRepository;
     }
 
     @Transactional
@@ -59,20 +63,35 @@ public class ExpenseService {
 
         Expense expense = findExpense(expenseId);
 
+        if(expense.getStatus() != ExpenseStatus.PENDING){
+            throw new InvalidExpenseStateException(
+                    "Only PENDING expenses can be updated. Current status: " + expense.getId()
+            );
+        }
+
         Category category = findCategory(request.getCategoryId());
 
-        // Define expense row
         expense.setTitle(request.getTitle());
         expense.setDescription(request.getDescription());
-        expense.setAmount(request.getAmount());
         expense.setExpenseDate(request.getExpenseDate());
+        expense.setAmount(request.getAmount());
         expense.setCategory(category);
 
-        return expense.getId();
+        expenseRepository.save(expense);
+
+        return expenseId;
     }
 
     @Transactional
     public void deleteExpense(Long expenseId){
+        Expense expense = findExpense(expenseId);
+
+        if(expense.getStatus() != ExpenseStatus.PENDING){
+            throw new InvalidExpenseStateException(
+                    "Only PENDING expenses can be deleted. Current status: " + expense.getStatus()
+            );
+        }
+
         expenseRepository.deleteById(expenseId);
     }
 
@@ -80,8 +99,8 @@ public class ExpenseService {
     private ExpenseResponse toResponse(Expense expense){
         return new ExpenseResponse(
                 expense.getId(),expense.getStatus(), expense.getTitle(), expense.getDescription(),
-                expense.getAmount(), expense.getExpenseDate(), expense.getCategory().getId(),
-                expense.getCategory().getName()
+                expense.getAmount(), expense.getExpenseDate(), expense.getCategory().getId(), expense.getCategory().getName(),
+                expense.getReviewedBy(), expense.getReviewedAt()
         );
     }
 
@@ -98,5 +117,45 @@ public class ExpenseService {
     private Category findCategory(Long categoryId){
         return categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found with id " + categoryId));
+    }
+
+    @Transactional
+    public ExpenseResponse approveExpense(Long expenseId, String reviewer){
+        return reviewExpense(expenseId, reviewer, ExpenseStatus.APPROVED);
+    }
+
+    @Transactional
+    public ExpenseResponse rejectExpense(Long expenseId, String reviewer){
+        return reviewExpense(expenseId, reviewer, ExpenseStatus.REJECTED);
+    }
+
+    private ExpenseResponse reviewExpense(Long expenseId, String reviewer, ExpenseStatus newStatus){
+
+        Expense expense = findExpense(expenseId);
+
+        if(expense.getStatus() != ExpenseStatus.PENDING){
+            throw new InvalidExpenseStateException(
+                    "Only PENDING expenses can be reviewed. Current status: " + expense.getId()
+            );
+        }
+
+        // Review expense
+        expense.setReviewedBy(reviewer);
+        expense.setReviewedAt(Instant.now());
+        expense.setStatus(newStatus);
+
+        ExpenseHistory expenseHistory = new ExpenseHistory();
+
+        // Record expense review in history
+        expenseHistory.setExpense(expense);
+        expenseHistory.setStatus(newStatus);
+        expenseHistory.setActor(reviewer);
+        expenseHistory.setActedAt(Instant.now());
+
+        expenseHistoryRepository.save(expenseHistory);
+        expenseRepository.save(expense);
+
+        return toResponse(expense);
+
     }
 }

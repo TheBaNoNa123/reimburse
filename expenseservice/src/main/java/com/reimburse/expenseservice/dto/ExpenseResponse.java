@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 
 @Data
@@ -26,5 +27,10 @@ public class ExpenseResponse {
     private Long categoryId;
 
     private String categoryName;
+
+    private String reviewedBy;
+
+    private Instant reviewedAt;
+
 
 }
