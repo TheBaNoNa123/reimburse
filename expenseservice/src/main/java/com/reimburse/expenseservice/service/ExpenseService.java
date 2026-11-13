@@ -10,10 +10,15 @@ import com.reimburse.expenseservice.repository.CategoryRepository;
 import com.reimburse.expenseservice.repository.ExpenseHistoryRepository;
 import com.reimburse.expenseservice.repository.ExpenseRepository;
 import com.reimburse.expenseservice.repository.UserRepository;
+import com.reimburse.expenseservice.specification.ExpenseSpecification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Service
 public class ExpenseService {
@@ -93,6 +98,28 @@ public class ExpenseService {
         }
 
         expenseRepository.deleteById(expenseId);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ExpenseResponse> getExpenses(ExpenseStatus status, Long categoryId,
+                                             LocalDate from, LocalDate to,Pageable pageable){
+        Specification<Expense> spec = (root, query, cb) -> cb.conjunction();
+
+        if(status != null){
+            spec = spec.and(ExpenseSpecification.hasStatus(status));
+        }
+        if(categoryId != null){
+            spec = spec.and(ExpenseSpecification.hasCategory(categoryId));
+        }
+        if(from != null){
+            spec = spec.and(ExpenseSpecification.dateFrom(from));
+        }
+        if(to != null){
+            spec = spec.and(ExpenseSpecification.dateTo(to));
+        }
+
+        return expenseRepository.findAll(spec, pageable).map(this::toResponse);
+
     }
 
     // Helper Methods

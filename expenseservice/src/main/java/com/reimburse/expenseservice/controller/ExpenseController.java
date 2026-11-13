@@ -7,9 +7,13 @@ import com.reimburse.expenseservice.dto.UpdateExpense;
 import com.reimburse.expenseservice.entity.ExpenseStatus;
 import com.reimburse.expenseservice.service.ExpenseService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/expense")
@@ -32,6 +36,17 @@ public class ExpenseController {
     public ResponseEntity<ExpenseResponse> getExpense(@PathVariable Long expenseId){
 
         return ResponseEntity.ok(expenseService.getExpense(expenseId));
+    }
+
+    @GetMapping
+    public ResponseEntity<Page<ExpenseResponse>> getExpenses(
+            @RequestParam(required = false) ExpenseStatus status,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to,
+            Pageable pageable){
+
+        return ResponseEntity.ok(expenseService.getExpenses(status, categoryId, from, to, pageable));
     }
 
     @PutMapping("/{expenseId}")
