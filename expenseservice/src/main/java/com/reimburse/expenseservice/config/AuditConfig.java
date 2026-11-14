@@ -14,7 +14,6 @@ import java.util.Optional;
 public class AuditConfig {
 
     @Bean
-
     public AuditorAware<String> auditorProvider(){
         // lambda makes it so it creates an anonymous class which implements auditorAware
         // and overrides the getCurrentAuditor with the body code we provide

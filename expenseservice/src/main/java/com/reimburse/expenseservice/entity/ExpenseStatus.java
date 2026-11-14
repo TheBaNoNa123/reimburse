@@ -1,5 +1,5 @@
 package com.reimburse.expenseservice.entity;
 
 public enum ExpenseStatus {
-    PENDING, APPROVED, REJECTED
+    PENDING, APPROVED, REJECTED, CANCELLED
 }

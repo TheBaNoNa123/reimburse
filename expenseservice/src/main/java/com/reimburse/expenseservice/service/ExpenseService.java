@@ -156,6 +156,32 @@ public class ExpenseService {
         return reviewExpense(expenseId, reviewer, ExpenseStatus.REJECTED);
     }
 
+    @Transactional
+    public ExpenseResponse cancelExpense(Long expenseId){
+        Expense expense = findExpense(expenseId);
+        ExpenseHistory expenseHistory = new ExpenseHistory();
+
+        if(expense.getStatus() != ExpenseStatus.PENDING){
+            throw new InvalidExpenseStateException(
+                    "Only PENDING expenses can be CANCELLED, Current status: " + expense.getStatus()
+            );
+        }
+
+        // Set status to CANCELLED and save
+        expense.setStatus(ExpenseStatus.CANCELLED);
+        expenseRepository.save(expense);
+
+        // Save to history
+        expenseHistory.setExpense(expense);
+        expenseHistory.setStatus(ExpenseStatus.CANCELLED);
+        expenseHistory.setActor(expense.getUser().getDisplayName());
+        expenseHistory.setActedAt(Instant.now());
+        expenseHistoryRepository.save(expenseHistory);
+
+        return toResponse(expense);
+
+    }
+
     private ExpenseResponse reviewExpense(Long expenseId, String reviewer, ExpenseStatus newStatus){
 
         Expense expense = findExpense(expenseId);

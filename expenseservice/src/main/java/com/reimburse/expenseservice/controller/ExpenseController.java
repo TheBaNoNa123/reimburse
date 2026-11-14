@@ -70,4 +70,9 @@ public class ExpenseController {
     public ResponseEntity<ExpenseResponse> rejectExpense(@PathVariable Long expenseId, @RequestParam String reviewer){
         return ResponseEntity.ok(expenseService.rejectExpense(expenseId, reviewer));
     }
+
+    @PutMapping("/{expenseId}/cancelled")
+    public ResponseEntity<ExpenseResponse> cancelExpense(@PathVariable Long expenseId){
+        return ResponseEntity.ok(expenseService.cancelExpense(expenseId));
+    }
 }
