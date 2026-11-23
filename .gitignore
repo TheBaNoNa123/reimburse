@@ -35,3 +35,5 @@ build/
 ### Spring Boot ###
 .properties.local
 /expenseservice/src/main/resources/application.yaml
+/expenseservice/src/main/resources/application-aws.yaml
+/expenseservice/src/main/resources/application-local.yaml
