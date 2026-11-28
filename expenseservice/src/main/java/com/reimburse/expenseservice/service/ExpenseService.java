@@ -4,6 +4,7 @@ import com.reimburse.expenseservice.dto.CreateExpenseRequest;
 import com.reimburse.expenseservice.dto.ExpenseResponse;
 import com.reimburse.expenseservice.dto.UpdateExpense;
 import com.reimburse.expenseservice.entity.*;
+import com.reimburse.expenseservice.exception.ForbiddenOperationException;
 import com.reimburse.expenseservice.exception.InvalidExpenseStateException;
 import com.reimburse.expenseservice.exception.ResourceNotFoundException;
 import com.reimburse.expenseservice.repository.CategoryRepository;
@@ -56,21 +57,33 @@ public class ExpenseService {
     }
 
     @Transactional(readOnly = true)
-    public ExpenseResponse getExpense(Long expenseId){
-
+    public ExpenseResponse getExpense(Long expenseId, CurrentUser caller){
         Expense expense = findExpense(expenseId);
+
+        if(!caller.manager()){
+            requireOwner(expense, caller);
+        }
 
         return toResponse(expense);
     }
 
-    @Transactional
-    public Long updateExpense(Long expenseId, UpdateExpense request){
+    public void requireOwner(Expense expense, CurrentUser caller){
+        if(!expense.getUser().getId().equals(caller.id())){
+            throw new ResourceNotFoundException(
+                    "Expense not found with id " + expense.getId()
+            );
+        }
+    }
 
+    @Transactional
+    public Long updateExpense(Long expenseId, UpdateExpense request, CurrentUser caller){
         Expense expense = findExpense(expenseId);
+
+        requireOwner(expense, caller);
 
         if(expense.getStatus() != ExpenseStatus.PENDING){
             throw new InvalidExpenseStateException(
-                    "Only PENDING expenses can be updated. Current status: " + expense.getId()
+                    "Only PENDING expenses can be updated. Current status: " + expense.getStatus()
             );
         }
 
@@ -88,8 +101,10 @@ public class ExpenseService {
     }
 
     @Transactional
-    public void deleteExpense(Long expenseId){
+    public void deleteExpense(Long expenseId, CurrentUser caller){
         Expense expense = findExpense(expenseId);
+
+        requireOwner(expense, caller);
 
         if(expense.getStatus() != ExpenseStatus.PENDING){
             throw new InvalidExpenseStateException(
@@ -102,8 +117,13 @@ public class ExpenseService {
 
     @Transactional(readOnly = true)
     public Page<ExpenseResponse> getExpenses(ExpenseStatus status, Long categoryId,
-                                             LocalDate from, LocalDate to,Pageable pageable){
+                                             LocalDate from, LocalDate to,Pageable pageable, CurrentUser caller){
+
         Specification<Expense> spec = (root, query, cb) -> cb.conjunction();
+
+        if(!caller.manager()){
+            spec = spec.and(ExpenseSpecification.belongsTo(caller.id()));
+        }
 
         if(status != null){
             spec = spec.and(ExpenseSpecification.hasStatus(status));
@@ -147,25 +167,30 @@ public class ExpenseService {
     }
 
     @Transactional
-    public ExpenseResponse approveExpense(Long expenseId, String reviewer){
-        return reviewExpense(expenseId, reviewer, ExpenseStatus.APPROVED);
+    public ExpenseResponse approveExpense(Long expenseId, CurrentUser caller){
+
+        return reviewExpense(expenseId, caller, ExpenseStatus.APPROVED);
+
     }
 
     @Transactional
-    public ExpenseResponse rejectExpense(Long expenseId, String reviewer){
-        return reviewExpense(expenseId, reviewer, ExpenseStatus.REJECTED);
+    public ExpenseResponse rejectExpense(Long expenseId, CurrentUser caller){
+
+        return reviewExpense(expenseId, caller, ExpenseStatus.REJECTED);
     }
 
     @Transactional
-    public ExpenseResponse cancelExpense(Long expenseId){
+    public ExpenseResponse cancelExpense(Long expenseId, CurrentUser caller){
         Expense expense = findExpense(expenseId);
         ExpenseHistory expenseHistory = new ExpenseHistory();
+        requireOwner(expense, caller);
 
         if(expense.getStatus() != ExpenseStatus.PENDING){
             throw new InvalidExpenseStateException(
                     "Only PENDING expenses can be CANCELLED, Current status: " + expense.getStatus()
             );
         }
+
 
         // Set status to CANCELLED and save
         expense.setStatus(ExpenseStatus.CANCELLED);
@@ -174,7 +199,7 @@ public class ExpenseService {
         // Save to history
         expenseHistory.setExpense(expense);
         expenseHistory.setStatus(ExpenseStatus.CANCELLED);
-        expenseHistory.setActor(expense.getUser().getDisplayName());
+        expenseHistory.setActor(caller.sub());
         expenseHistory.setActedAt(Instant.now());
         expenseHistoryRepository.save(expenseHistory);
 
@@ -182,19 +207,33 @@ public class ExpenseService {
 
     }
 
-    private ExpenseResponse reviewExpense(Long expenseId, String reviewer, ExpenseStatus newStatus){
+    private ExpenseResponse reviewExpense(Long expenseId, CurrentUser caller, ExpenseStatus newStatus){
 
         Expense expense = findExpense(expenseId);
 
-        if(expense.getStatus() != ExpenseStatus.PENDING){
-            throw new InvalidExpenseStateException(
-                    "Only PENDING expenses can be reviewed. Current status: " + expense.getId()
+        if(!caller.manager()){
+            throw new ForbiddenOperationException(
+                    "Only managers can review expenses"
             );
         }
 
+        if(expense.getUser().getId().equals(caller.id())){
+            throw new ForbiddenOperationException(
+                    "Managers cannot review their own expense"
+            );
+        }
+
+        if(expense.getStatus() != ExpenseStatus.PENDING){
+            throw new InvalidExpenseStateException(
+                    "Only PENDING expenses can be reviewed. Current status: " + expense.getStatus()
+            );
+        }
+
+        Instant now = Instant.now();
+
         // Review expense
-        expense.setReviewedBy(reviewer);
-        expense.setReviewedAt(Instant.now());
+        expense.setReviewedBy(caller.sub());
+        expense.setReviewedAt(now);
         expense.setStatus(newStatus);
 
         ExpenseHistory expenseHistory = new ExpenseHistory();
@@ -202,8 +241,8 @@ public class ExpenseService {
         // Record expense review in history
         expenseHistory.setExpense(expense);
         expenseHistory.setStatus(newStatus);
-        expenseHistory.setActor(reviewer);
-        expenseHistory.setActedAt(Instant.now());
+        expenseHistory.setActor(caller.sub());
+        expenseHistory.setActedAt(now);
 
         expenseHistoryRepository.save(expenseHistory);
         expenseRepository.save(expense);

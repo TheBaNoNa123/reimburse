@@ -4,6 +4,7 @@ import com.reimburse.expenseservice.dto.CreateExpenseRequest;
 import com.reimburse.expenseservice.dto.ExpenseResponse;
 import com.reimburse.expenseservice.dto.UpdateExpense;
 import com.reimburse.expenseservice.entity.*;
+import com.reimburse.expenseservice.exception.ForbiddenOperationException;
 import com.reimburse.expenseservice.exception.InvalidExpenseStateException;
 import com.reimburse.expenseservice.exception.ResourceNotFoundException;
 import com.reimburse.expenseservice.repository.CategoryRepository;
@@ -96,9 +97,15 @@ public class ExpenseServiceTest {
 
     @Test
     void updateExpense_throwsInvalidExpense_ifUpdateNonPending(){
+        User user = new User();
+        user.setId(1L);
         Expense expense = new Expense();
+        expense.setUser(user);
         expense.setId(1L);
         expense.setStatus(ExpenseStatus.APPROVED);
+
+        CurrentUser alice = new CurrentUser(1L, "alice-sub", false);
+        CurrentUser bob = new CurrentUser(2L, "bob-sub", true);
 
         UpdateExpense request = new UpdateExpense();
         request.setTitle("Vacation");
@@ -109,27 +116,80 @@ public class ExpenseServiceTest {
         when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
 
         assertThrows(InvalidExpenseStateException.class, () -> {
-            expenseService.updateExpense(1L, request);
+            expenseService.updateExpense(1L, request, alice);
         });
         verify(expenseRepository, never()).save(any());
     }
 
     @Test
     void approveExpense_writesHistory(){
+        User user = new User();
+        user.setId(1L);
+
         Category category = new Category();
         category.setId(1L);
 
+        CurrentUser alice = new CurrentUser(1L, "alice-sub", false);
+        CurrentUser bob = new CurrentUser(2L, "bob-sub", true);
+
         Expense expense = new Expense();
+        expense.setUser(user);
         expense.setId(1L);
         expense.setStatus(ExpenseStatus.PENDING);
         expense.setCategory(category);
 
         when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
 
-        ExpenseResponse result = expenseService.approveExpense(1L, "Sam");
+        ExpenseResponse result = expenseService.approveExpense(1L, bob);
         assertEquals(ExpenseStatus.APPROVED, result.getStatus());
-        assertEquals("Sam", result.getReviewedBy());
+        assertEquals("bob-sub", result.getReviewedBy());
 
         verify(expenseHistoryRepository).save(any(ExpenseHistory.class));
+    }
+
+    @Test
+    void employeeCanNot_readOtherEmployee_expense(){
+        User user1 = new User();
+        user1.setId(1L);
+
+        Category category = new Category();
+        category.setId(1L);
+
+        Expense expense = new Expense();
+        expense.setUser(user1);
+        expense.setCategory(category);
+        expense.setId(1L);
+        expense.setStatus(ExpenseStatus.PENDING);
+
+        CurrentUser otherEmployee = new CurrentUser(2L, "bob-sub", false);
+
+        when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
+
+        assertThrows(ResourceNotFoundException.class, () ->{
+            expenseService.getExpense(1L, otherEmployee);
+        });
+    }
+    @Test
+    void managerCant_approveOwnExpense(){
+        CurrentUser manager = new CurrentUser(1L, "manager-sub", true);
+
+        User user = new User();
+        user.setId(1L);
+        Category category = new Category();
+        category.setId(1L);
+
+        Expense expense = new Expense();
+        expense.setStatus(ExpenseStatus.PENDING);
+        expense.setId(1L);
+        expense.setUser(user);
+        expense.setCategory(category);
+
+        when(expenseRepository.findById(1L)).thenReturn(Optional.of(expense));
+
+        assertThrows(ForbiddenOperationException.class, () ->{
+           expenseService.approveExpense(1L, manager);
+        });
+
+        verify(expenseHistoryRepository, never()).save(any());
     }
 }

@@ -19,7 +19,7 @@ public class User extends Auditable{
     @Column(name = "cognito_sub", unique = true, nullable = false, updatable = false)
     private String cognitoSub;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = true)
     private String email;
 
     @Column(name = "display_name", length = 20, nullable = false)

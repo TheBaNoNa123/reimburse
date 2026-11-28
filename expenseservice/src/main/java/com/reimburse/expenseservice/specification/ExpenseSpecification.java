@@ -9,14 +9,14 @@ import java.time.LocalDate;
 // Creating custom filters
 public class ExpenseSpecification {
 
-    //
     public static Specification<Expense> hasStatus(ExpenseStatus status){
-        return (root, query, cb) -> cb.equal(root.get("status"), status);
+        return (root, query, cb) ->
+                cb.equal(root.get("status"), status);
     }
 
     public static Specification<Expense> hasCategory(Long categoryId){
-        // r : main table ; q :
-        return (root , query, cb) -> cb.equal(root.get("category").get("id"), categoryId);
+        return (root , query, cb) ->
+                cb.equal(root.get("category").get("id"), categoryId);
     }
 
     public static Specification<Expense> dateFrom(LocalDate from){
@@ -27,5 +27,10 @@ public class ExpenseSpecification {
     public static Specification<Expense> dateTo(LocalDate to){
         return (root, query, cb) ->
                 cb.lessThanOrEqualTo(root.get("expenseDate"), to);
+    }
+
+    public static Specification<Expense> belongsTo(Long userId){
+        return ((root, query, cb) ->
+                cb.equal(root.get("user").get("id"), userId));
     }
 }
